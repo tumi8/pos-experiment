@@ -1,0 +1,3 @@
+moongenrepo: "https://github.com/tumi8/MoonGen"
+moongenbranch: "v25.11"
+dpdkdriverrepo: "https://dpdk.org/git/dpdk-kmods"
