@@ -5,7 +5,8 @@
 set -x
 set -e
 
-INSTANCE='i8'
+#TODO define instance to use for experiment
+INSTANCE=''
 
 NODE_A="$INSTANCE-a"
 NODE_B="$INSTANCE-b"
