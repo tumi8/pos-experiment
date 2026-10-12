@@ -5,12 +5,30 @@
 set -x
 set -e
 
-if [ "${1-}" = "--help" ] || [ "${1-}" = "-h" ]; then
-    echo "Usage: $0 NODE_A NODE_B [IMAGE] (default image: debian-trixie)"
-    exit 0
-fi
+usage() {
+    echo "Usage: $0 NODE_A NODE_B [IMAGE] [--add-metadata] [--publish]"
+    echo "Default image: debian-trixie"
+    echo "  --add-metadata  Run add_metadata.sh after successful evaluation."
+    echo "  --publish       Run publish.sh to upload a Zenodo draft."
+}
+
+ADD_METADATA=false
+PUBLISH=false
+args=()
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+        --add-metadata) ADD_METADATA=true ;;
+        --publish) PUBLISH=true ;;
+        --help|-h) usage; exit 0 ;;
+        --) shift; args+=("$@"); break ;;
+        -*) echo "Unknown option: $1" >&2; usage >&2; exit 2 ;;
+        *) args+=("$1") ;;
+    esac
+    shift
+done
+set -- "${args[@]}"
 if [ "$#" -lt 2 ] || [ "$#" -gt 3 ]; then
-    echo "Usage: $0 NODE_A NODE_B [IMAGE]" >&2
+    usage >&2
     exit 2
 fi
 NODE_A="$1"
@@ -28,7 +46,24 @@ pos allocations free $NODE_A
 pos allocations free $NODE_B
 
 # allocate experiment nodes
-pos allocations allocate $NODE_A $NODE_B
+allocation_output=$(pos allocations allocate "$NODE_A" "$NODE_B")
+# Release this allocation on exit, preserving any earlier failure.
+trap '
+    status=$?
+    if ! pos allocations free "$NODE_A"; then
+        echo "Failed to free nodes." >&2
+        [ "$status" -ne 0 ] || status=1
+    fi
+    exit "$status"
+' EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+printf '%s\n' "$allocation_output"
+RESULT_FOLDER=$(printf '%s\n' "$allocation_output" | sed -n 's/^Results in //p')
+if [ -z "$RESULT_FOLDER" ]; then
+    echo "Could not read the result folder from allocation output." >&2
+    exit 1
+fi
 
 # load global variables (the allocation is referred to by any node within it)
 pos allocations set_variables $NODE_A --as-global ./global-variables.yml
@@ -65,8 +100,27 @@ status=0
 # --queued disables --blocking; wait for both nodes before freeing them.
 pos commands launch --name measurement-reflector --infile node-b/task_description.sh --blocking --loop $NODE_B || status=1
 wait "$measurement_a" || status=1
+if [ "$status" -ne 0 ]; then
+    echo "Measurement failed; skipping evaluation." >&2
+    exit 1
+fi
 
-# free nodes
-# pos allocations free -k $NODE_A
-pos allocations free $NODE_A
-exit "$status"
+# copy evaluation files
+pos nodes copy --blocking --recursive --name evaluation-script "$NODE_A" ./evaluation --dest /root/evaluator
+
+# copy the current allocation's results
+pos nodes copy --blocking --recursive --relative --name evaluation-results "$NODE_A" . --dest /root/experiment-results
+
+# run evaluation
+pos commands launch --name evaluation --infile evaluation/evaluation.sh --blocking "$NODE_A"
+
+# Release the nodes before modifying or uploading the completed results.
+pos allocations free "$NODE_A"
+trap - EXIT
+
+if [ "$ADD_METADATA" = true ]; then
+    bash add_metadata.sh "$RESULT_FOLDER"
+fi
+if [ "$PUBLISH" = true ]; then
+    bash publish.sh "$RESULT_FOLDER"
+fi

@@ -47,12 +47,12 @@ import numpy as np
 # "filter" you need to set depending on what you want to evaluate.
 #
 # Examples for this kind of pos/MoonGen result folder:
-#   "*loadgen_run*.stdout"    -> only the sender (loadgen) output files
+#   "*_loadgen_run*.stdout"   -> only the sender (loadgen) output files
 #   "*reflector_run*.stdout"  -> only the receiver (reflector) output files
 #   "*.stdout"                -> every stdout file (incl. bootstrap/reset)
 
 # TODO adapt file filter
-FILE_FILTER = "*loadgen_run*.stdout"
+FILE_FILTER = "*_loadgen_run*.stdout"
 
 # Regex that extracts one RX or TX throughput sample from a MoonGen log
 # line, e.g.:

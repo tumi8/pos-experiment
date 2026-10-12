@@ -1,70 +1,56 @@
 # pos-experiment
 
-A two-node demo: node-a sends Ethernet packets with MoonGen; node-b sends them
-back. It repeats the test for eight packet sizes, about 20 seconds each, and
-records throughput and optional energy measurements.
+A two-node MoonGen demo measuring throughput and optional energy use across
+eight packet sizes. One node sends Ethernet packets; the other reflects them.
 
 ## Run
 
-On kaunas, reserve the shared nodes, then use the development CLI for the
-RO-Crate daemon:
+Reserve the nodes, then run:
 
 ```bash
-/srv/testbed/pos/cli/venv3/bin/pos calendar create --start now --duration 60 narva klaipeda
-export PATH="/home/warmuth/pos/dev/cli-dev/venv3/bin:$PATH"
-cd ~/experiments/pos-experiment
-pos nodes list
-bash experiment.sh narva klaipeda
+bash experiment.sh <node-a> <node-b> --add-metadata --publish
 ```
 
-Continue only if the reservation succeeds. The development setup does not
-enforce the system calendar, so reserve the nodes to avoid overlapping runs.
+Both flags also work separately. `--publish` requires a Zenodo token at
+`~/.secrets/zenodo_token`. Use `bash experiment.sh --help` for syntax.
 
-Choose two available, directly connected nodes. The script reserves them,
-selects an image, reboots them, builds MoonGen, runs the tests and releases them.
-It first releases existing allocations of both nodes, including their other nodes.
+## Configuration
 
-To choose a different image, add its name:
-
-```bash
-bash experiment.sh narva klaipeda debian-bookworm
-```
-
-Build tools and kernel headers must be available in the image. The hardware
-run has not been verified. Use `--help` for the command syntax.
-
-## Variables
-
-The included port settings are for **narva / klaipeda**:
+The included settings are for directly connected **narva / klaipeda**:
 
 | File | Setting |
 | --- | --- |
-| `node-a/local-variables-a.yml` | narva PCI `0000:03:00.0`, MoonGen ID `0` |
-| `node-b/local-variables-b.yml` | klaipeda PCI `0000:02:00.0`, MoonGen ID `0` |
+| `node-a/local-variables-a.yml` | node-a PCI `0000:03:00.0`, MoonGen ID `0` |
+| `node-b/local-variables-b.yml` | node-b PCI `0000:02:00.0`, MoonGen ID `0` |
 | `global-variables.yml` | MoonGen repository/version and driver repository |
 | `loop-variables.yml` | Packet sizes, one test per size |
 
-For other nodes, change the PCI addresses in the local files; keep MoonGen ID `0`.
-Setup binds only that interface to the driver and limits MoonGen to it.
-Before rebooting, the script enables IOMMU passthrough for the `igb_uio` driver.
-Use test ports, not management ports. No IP addresses or TCP/UDP ports are needed.
+For other nodes, update the PCI addresses in the local files and keep MoonGen
+ID `0`. Use test interfaces, not management interfaces. The image needs build
+tools and kernel headers.
 
 ## Results
 
-The allocation output prints a new result folder under `/srv/testbed/results/`.
-Traffic logs go into `scripts/<node>/`; energy CSVs into `energy/<node>/`.
-The RO-Crate daemon also records metadata linking the files to each test.
-Energy measures the node's power supply; failures print warnings and the demo
-continues. After an interrupted run, check for remaining processes/measurements.
+The allocation output prints the result folder under `/srv/testbed/results/`:
 
-To print throughput statistics after a run, replace the path below with its
-result folder:
+- Traffic logs: `scripts/<node>/`
+- Optional energy CSVs: `energy/<node>/`
+- Throughput report: `files/<node-a>/evaluation/throughput.txt`
+- Experiment metadata: `ro-crate-metadata.json`
+
+Energy failures produce warnings and the demo continues. After an interrupted
+run, check for remaining processes and measurements.
+
+To add metadata and upload a draft after a completed run, use the development
+CLI on kaunas and replace the path below with the printed result folder:
 
 ```bash
-cd evaluation
-bash create_venv.sh
-.venv/bin/python evaluate_throughput.py /path/to/result-folder
+bash add_metadata.sh /path/to/result-folder
+pos results validate --result-folder /path/to/result-folder
+bash publish.sh /path/to/result-folder
 ```
 
-Evaluation is manual. It prints RX/TX statistics per packet size; it does not
-evaluate energy or latency. The local latency histogram is not uploaded.
+`add_metadata.sh` adds demo authors, license, title and keywords. Review its
+defaults before use and run it only once per result folder. Skip it if already
+run via `--add-metadata`. `publish.sh` uses the token above and prints a draft
+link for review and publication on Zenodo.
