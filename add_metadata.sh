@@ -26,11 +26,11 @@ pos results modify add_author --result-folder "$RESULT_FOLDER" \
     --roles "Project administration, Methodology"
 
 pos results modify add_license --result-folder "$RESULT_FOLDER" "CC-BY-SA-4.0"
-pos results modify add_title --result-folder "$RESULT_FOLDER" \
-    "SLICES-DE pos MoonGen throughput and energy demo"
+# pos results modify add_title --result-folder "$RESULT_FOLDER" \
+#     "SLICES-DE pos MoonGen throughput and energy demo"
 #pos results modify add_description --result-folder "$RESULT_FOLDER" \
 #    "Two-node Ethernet experiment using MoonGen: node-a generates traffic and node-b reflects it. Measurements run for about 20 seconds per packet size (64, 128, 256, 512, 768, 1024, 1280 and 1518 bytes). Results include traffic logs, RX/TX throughput statistics and energy measurements where supported."
-pos results modify add_keywords --result-folder "$RESULT_FOLDER" \
-    "pos,SLICES-DE,GreenDigit,MoonGen,throughput,energy"
+# pos results modify add_keywords --result-folder "$RESULT_FOLDER" \
+#     "pos,SLICES-DE,GreenDigit,MoonGen,throughput,energy"
 
 pos results show --result-folder "$RESULT_FOLDER"
